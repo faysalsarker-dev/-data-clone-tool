@@ -2,12 +2,15 @@ const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const { parse } = require("json2csv");
 
-async function scrapeProducts(allProductsPage) {
+async function scrapeProducts() {
   const browser = await puppeteer.launch({
     executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
+
+
+  const allProductsPage = `https://www.vapeandgo.co.uk/product-category/vape-kits/?page=${1}&filters=%7B%22sort_by%22%3A%22featured%22%2C%22show%22%3A25%7D`;
 
   const page = await browser.newPage();
 
@@ -98,4 +101,4 @@ async function scrapeProducts(allProductsPage) {
 }
 
 // 🔹 Call the function with the product listing page link
-scrapeProducts("https://www.vapeandgo.co.uk/product-category/vape-kits/?page=1&filters=%7B%22sort_by%22%3A%22featured%22%2C%22show%22%3A25%7D");
+scrapeProducts();
