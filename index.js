@@ -2,6 +2,32 @@ const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const { parse } = require("json2csv");
 
+
+
+
+// set here here website page link that you want to scrape data
+const pagePath = 'https://www.vapeandgo.co.uk/brands/zeus-juice/'
+
+// set here total number of pages you want to scrape data
+const totalPages = 3; 
+
+// set here file name where you want to save scraped data
+const fileName = "products.csv";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 async function scrapeProducts() {
   const browser = await puppeteer.launch({
     executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -9,29 +35,35 @@ async function scrapeProducts() {
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
-
-  const allProductsPage = `https://www.vapeandgo.co.uk/product-category/vape-kits/?page=${1}&filters=%7B%22sort_by%22%3A%22featured%22%2C%22show%22%3A25%7D`;
-
   const page = await browser.newPage();
 
-  try {
-    console.log(`🔍 Visiting Product Listing Page: ${allProductsPage}`);
-    await page.goto(allProductsPage, { timeout: 60000 });
-    
-    // Wait for product links
-    await page.waitForSelector(".variants-container a");
-    
-    // Extract all product links
-    const productLinks = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll(".variants-container a")).map(el => el.href);
-    });
+  let allProductLinks = [];
 
-    console.log(`✅ Found ${productLinks.length} product links.`);
+
+  try {
+    // 🔹 Collect All Product Links from All Pages
+    for (let i = 1; i <= totalPages; i++) {
+      const allProductsPage = `${pagePath}?page=${i}`;
+      
+      console.log(`🔍 Visiting Listing Page: ${allProductsPage}`);
+      await page.goto(allProductsPage, { timeout: 60000 });
+      
+      await page.waitForSelector(".variants-container a");
+      
+      const productLinks = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll(".variants-container a")).map(el => el.href);
+      });
+
+      console.log(`✅ Page ${i}: Found ${productLinks.length} product links.`);
+      allProductLinks.push(...productLinks);
+    }
+
+    console.log(`🔗 Total ${allProductLinks.length} product links collected!`);
 
     let scrapedData = [];
 
     // 🔹 Visit Each Product Page & Scrape Data
-    for (let link of productLinks) {
+    for (let link of allProductLinks) {
       try {
         await page.goto(link, { timeout: 60000 });
         await page.waitForSelector(".pv-prodt_name");
@@ -42,12 +74,11 @@ async function scrapeProducts() {
             return {
               [`Attribute ${index + 1} name`]: cols[0]?.innerText.trim() || "N/A",
               [`Attribute ${index + 1} value(s)`]: cols[1]?.innerText.trim() || "N/A",
-              [`Attribute ${index + 1} visible`]: 1, // Always visible
-              [`Attribute ${index + 1} global`]: 0  // Non-global
+              [`Attribute ${index + 1} visible`]: 1, 
+              [`Attribute ${index + 1} global`]: 0  
             };
           });
 
-          // Convert array to object for CSV structure
           const formattedAttributes = Object.assign({}, ...attributes);
 
           return {
@@ -63,7 +94,7 @@ async function scrapeProducts() {
           };
         });
 
-        console.log("📌 Scraped:", productData.Name);
+        console.log("📌 Scraped:",productData.Name);
         scrapedData.push(productData);
         
       } catch (err) {
@@ -71,7 +102,7 @@ async function scrapeProducts() {
       }
     }
 
-    // 🔹 Convert JSON to CSV (For WooCommerce Import)
+    // 🔹 Convert JSON to CSV
     if (scrapedData.length > 0) {
       const csvFields = [
         "Name", "Short description", "Description", "Sale price", "Regular price", 
@@ -87,7 +118,7 @@ async function scrapeProducts() {
       ];
 
       const csv = parse(scrapedData, { fields: csvFields });
-      fs.writeFileSync("products.csv", csv);
+      fs.writeFileSync(fileName, csv);
       console.log("✅ Data saved successfully in 'products.csv'");
     } else {
       console.log("⚠️ No data to save.");
@@ -100,5 +131,5 @@ async function scrapeProducts() {
   }
 }
 
-// 🔹 Call the function with the product listing page link
+// 🔹 Run Function
 scrapeProducts();
